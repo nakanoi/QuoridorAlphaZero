@@ -1,6 +1,6 @@
 # Alpha Zero Program for Quoridor
 
-This is a Alpha Zero program for quoridor. If you aren't familiar to quoridor, chech [this](https://en.wikipedia.org/wiki/Quoridor) out.
+This is an Alpha Zero program for quoridor. If you aren't familiar to quoridor, check [this](https://en.wikipedia.org/wiki/Quoridor) out.
 
 This repository's network is not trained because it needs realy long time and enough computer resources. Unfortunately I am a poor student and have neither of them.
 So, if you have them, train this network instead of me. That would be vary thankful.
@@ -91,7 +91,7 @@ export default {
 2. When you want to change Alpha Zero's hyper paramators like train epoch, change ```config.py```'s variables.
 
 ## Reference
-- ALpha Zero [paper link].
+- Alpha Zero [paper link].
 
 ## License
 

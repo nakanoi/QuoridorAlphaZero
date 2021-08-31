@@ -42,19 +42,25 @@ def take_action():
 
         str_board = json.dumps(board_json)
         board = json.loads(str_board, cls=Decoder)
+        # Player
         over, new_board, point = match.play_with(board, actions, int(board_json['take_action']), cwd=cwd)
-        if over:
-            print('Over.')
-            if new_board.is_first():
-                print('FIRST LOSE', point)
-            else:
-                print('FIRST WIN', point)
-        else:
-            board = deepcopy(new_board)
-            over, new_board, point = match.play_with(board, actions, None, cwd=cwd)
+        board = deepcopy(new_board)
+        # Network
+        over, new_board, point = match.play_with(board, actions, None, cwd=cwd)
 
-    new_board_json = json.dumps(new_board, cls=Encoder, indent=4)
-    new_board_json = json.loads(new_board_json)
+        if over:
+            new_board_dic = json.dumps(new_board, cls=Encoder)
+            new_board_dic = json.loads(new_board_dic)
+            new_board_dic['over'] = True
+            new_board_json = json.dumps(new_board_dic)
+            new_board = json.loads(new_board_json, cls=Decoder)
+            point = 1
+        elif new_board.is_over():
+            over = True
+            point = 0
+
+    new_board_dic = json.dumps(new_board, cls=Encoder)
+    new_board_json = json.loads(new_board_dic)
 
     new_board_json.setdefault('over', over)
     new_board_json.setdefault('point', point)

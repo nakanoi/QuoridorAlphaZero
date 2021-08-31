@@ -55,7 +55,10 @@
           <p class="own-text">WALLS NETWORK HAS</p>
         </div>
       </div>
-      <button @click="getBoard()" class="confirm">Send Action</button>
+      <p v-if="boards.board.over == true && boards.board.point == 1" class="result result-win">You Win.</p>
+      <p v-else-if="boards.board.over == true && boards.board.point == 0" class="result result-lose">You Lose.</p>
+      <button v-if="boards.board.over == true"><a href="http://127.0.0.1:5000">Rematch</a></button>
+      <button v-else @click="getBoard()" class="confirm">Send Action</button>
     </div>
   </div>
 </template>
@@ -73,8 +76,8 @@ export default {
         'oldBoard': null,
         'net': true
       },
-      len: 9,
-      walls: 10
+      len: 5,
+      walls: 4
     }
   },
   methods: {
@@ -99,21 +102,23 @@ export default {
           } else {
             var movable = false
             // takable actions
-            for (var k = 0; k < this.boards.board['takables'].length; k++) {
-              for (var l = 0; l < 4; l++) {
-                if (this.boards.board['takables'][k] === l) {
-                  if (this.boards.board['pawn_self']['position'][0] + moves[l][0] === i && this.boards.board['pawn_self']['position'][1] + moves[l][1] === j) {
-                    pawn.setAttribute('exists', 'possible')
-                    pawn.setAttribute('action', l)
-                    movable = true
-                    break
-                  }
-                } else if (this.boards.board['takables'][k] === l + 4) {
-                  if (this.boards.board['pawn_other_position'][0] + moves[l][0] === i && this.boards.board['pawn_other_position'][1] + moves[l][1] === j) {
-                    pawn.setAttribute('exists', 'possible')
-                    pawn.setAttribute('action', l + 4)
-                    movable = true
-                    break
+            if (this.boards.board['over'] === false) {
+              for (var k = 0; k < this.boards.board['takables'].length; k++) {
+                for (var l = 0; l < 4; l++) {
+                  if (this.boards.board['takables'][k] === l) {
+                    if (this.boards.board['pawn_self']['position'][0] + moves[l][0] === i && this.boards.board['pawn_self']['position'][1] + moves[l][1] === j) {
+                      pawn.setAttribute('exists', 'possible')
+                      pawn.setAttribute('action', l)
+                      movable = true
+                      break
+                    }
+                  } else if (this.boards.board['takables'][k] === l + 4) {
+                    if (this.boards.board['pawn_other_position'][0] + moves[l][0] === i && this.boards.board['pawn_other_position'][1] + moves[l][1] === j) {
+                      pawn.setAttribute('exists', 'possible')
+                      pawn.setAttribute('action', l + 4)
+                      movable = true
+                      break
+                    }
                   }
                 }
               }
@@ -123,7 +128,7 @@ export default {
             }
           }
 
-          if (j !== this.len - 1) {
+          if (j !== this.len - 1 && this.boards.board['over'] === false) {
             // wall vertical
             var wallV = wallVs[i * (this.len - 1) + j]
             wallV.setAttribute('open_vertical', i * (this.len - 1) + j)
@@ -136,7 +141,7 @@ export default {
           }
         }
 
-        if (i !== this.len - 1) {
+        if (i !== this.len - 1 && this.boards.board['over'] === false) {
           for (j = 0; j < this.len; j++) {
             // wall horizontal
             var wallH = wallHs[i * this.len + j]
@@ -154,14 +159,15 @@ export default {
     getBoard () {
       this.cleanSelected()
       const path = `http://127.0.0.1:5000/api/action`
-      Vue.set(this.boards, 'oldBoard', this.boards.board)
+      this.$set(this.boards, 'oldBoard', this.boards.board)
       if (this.boards.oldBoard === null) {
-        Vue.set(this.boards, 'oldBoard', {'network_first': this.boards['net']})
+        this.$set(this.boards, 'oldBoard', {'network_first': this.boards['net']})
       }
 
       axios.post(path, this.boards.oldBoard)
         .then(response => {
-          Vue.set(this.boards, 'board', response.data)
+          console.log(response.data)
+          this.$set(this.boards, 'board', response.data)
           this.drawBoard()
         })
         .catch(error => {
@@ -384,6 +390,18 @@ button:hover {
 }
 .own_transepose {
   background: transparent !important;
+}
+.result {
+  padding: .2em 0;
+  font-size: 16px;
+  color: rgb(247, 20, 20);
+}
+.result-lose {
+  color: rgb(0, 3, 192);
+}
+a {
+  color: black;
+  text-decoration: none;
 }
 
 </style>

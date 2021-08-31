@@ -97,6 +97,19 @@ class Decoder(json.JSONDecoder):
         if '_type' not in o:
             return o
 
+        if o['over']:
+            board = Board(
+                pawn_self = Pawn(position =  np.array(o['pawn_other']['position']), ),
+                pawn_other = Pawn(position = np.array(o['pawn_self']['position']), ),
+                wall_vertical = WallVertical(vertical = np.rot90(np.array(o['wall_vertical']['open_vertical']), 2), ),
+                wall_horizontal = WallHorizontal(horizontal = np.rot90(np.array(o['wall_horizontal']['open_horizontal']), 2), ),
+                wall = Wall(vertical = np.rot90(np.array(o['wall']['vertical']), 2), horizontal = np.rot90(np.array(o['wall']['horizontal']), 2), ),
+                walls_self = o['walls_other'],
+                walls_other = o['walls_self'],
+                turn = o['turn'],
+            )
+            return board
+
         if o['_type'] == 'Board':
             board = Board(
                 pawn_self = Pawn(position = np.array(o['pawn_self']['position']), ),

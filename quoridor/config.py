@@ -1,9 +1,9 @@
 '''
 Hyper Paramators
 '''
-LENGTH = 9
-WALLS = 10
-BREAK = 332
+LENGTH = 5
+WALLS = 4
+BREAK = 112
 INPUT_SHAPE = (LENGTH, LENGTH, 4 + WALLS * 2)
 OUTPUT_SHAPE = 8 + 2 * (LENGTH - 1) * (LENGTH - 1)
 # Train epoch for one cycle.
@@ -16,10 +16,10 @@ INITIALIZER = 'he_normal'
 REGULARIZER = 0.0005
 RES_NUM = 19
 # simulation times per one prediction.
-SIMULATIONS = 500 #1600
+SIMULATIONS = 300 #1600
 GAMMA = 1.0
 # self match times.
-SELFMATCH = 1000 # 25000
+SELFMATCH = 200 # 25000
 CYCLES = 200
 # Evaluation times per one evaluation
 EVAL_MATCH = 20 # 400

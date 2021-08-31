@@ -105,7 +105,6 @@ class SelfMatch:
 
         while not board.is_over():
             probs = algo.get_probs(net, board, simulations, gamma)
-#            print(probs)
             policy = [0 for _ in range(config.OUTPUT_SHAPE)]
 
             for a, p in zip(board.takable_actions(), probs):
@@ -116,7 +115,6 @@ class SelfMatch:
             action = np.random.choice(board.takable_actions(), p=probs)
             old_board = deepcopy(board)
             board = old_board.next_board(action)
-#            print(board, '\naction =', action, board.walls_self, board.walls_other)
             turn += 1
 
         value = self.first_play_value(board)
@@ -161,7 +159,7 @@ class SelfMatch:
             hist_inputs.extend(hist_input)
             hist_pvs.extend(hist_pv)
             results.append(value)
-            print(value)
+            print(value, end='')
 
         self.log.log_result(results, epoches)
         self._save_history(hist_inputs, hist_pvs, epoches)

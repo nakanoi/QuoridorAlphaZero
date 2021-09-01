@@ -17,7 +17,6 @@ def get_value(board):
         return 0
 
 def single_match(net, algo, simulations, gamma, j):
-    print('MAAAAAAAAAAAAAAAAAAAAAATCH', j)
     board = Board()
     hist_input, hist_policy = None, None
 
@@ -41,7 +40,6 @@ def single_match(net, algo, simulations, gamma, j):
         action = np.random.choice(board.takable_actions(), p=probs)
         old_board = deepcopy(board)
         board = old_board.next_board(action)
-        print(j)
 
     value = get_value(board)
     ret = value
@@ -171,7 +169,6 @@ class SelfMatch:
             action = np.random.choice(board.takable_actions(), p=probs)
             old_board = deepcopy(board)
             board = old_board.next_board(action)
-            print(j)
 
         value = self.first_play_value(board)
         ret = value
@@ -234,9 +231,6 @@ class SelfMatch:
                         hist_values = hist_value.copy()
                     else:
                         hist_values = np.append(hist_values, hist_value)
-                    print(hist_input.shape, hist_policy.shape, hist_value.shape)
-                    print(hist_inputs.shape, hist_policies.shape, hist_values.shape)
-                    print('*' * 50)
 
         self.log.log_result(results, epoches)
         self._save_history(hist_inputs, hist_policies, hist_values, epoches)

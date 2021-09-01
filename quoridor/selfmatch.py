@@ -1,11 +1,56 @@
 import numpy as np
 import os
-import pickle
+from concurrent import futures
+
 from copy import deepcopy
 from board import Board
 from logs import Log
 import config
 
+
+def get_value(board):
+    if not board.is_over():
+        ValueError('This Match Hasnt Over yet.')
+    if board.is_lose():
+        return -1 if board.is_first() else 1
+    else:
+        return 0
+
+def single_match(net, algo, simulations, gamma, j):
+    print('MAAAAAAAAAAAAAAAAAAAAAATCH', j)
+    board = Board()
+    hist_input, hist_policy = None, None
+
+    while not board.is_over():
+        probs = algo.get_probs(net, board, simulations, gamma)
+        policy = np.zeros(config.OUTPUT_SHAPE)
+        for a, p in zip(board.takable_actions(), probs):
+            policy[a] = p
+
+        inp = board.reshape_input()
+        if hist_input is None:
+            hist_input = inp.copy()
+        else:
+            hist_input = np.vstack([hist_input, inp])
+
+        if hist_policy is None:
+            hist_policy = policy.copy()
+        else:
+            hist_policy = np.vstack([hist_policy, policy])
+
+        action = np.random.choice(board.takable_actions(), p=probs)
+        old_board = deepcopy(board)
+        board = old_board.next_board(action)
+        print(j)
+
+    value = get_value(board)
+    ret = value
+    hist_value = np.zeros(hist_policy.shape[0])
+    for i in range(len(hist_value)):
+        hist_value[i] = value
+        value *= -1
+
+    return hist_input, hist_policy, hist_value, ret
 
 class SelfMatch:
     '''
@@ -47,15 +92,17 @@ class SelfMatch:
         else:
             return .5
 
-    def _save_history(self, hist_input, hist_pv, epochs):
+    def _save_history(self, hist_input, hist_policy, hist_value, epochs):
         '''
 
         Parameters
         ----------
-        hist_input : list
+        hist_input : np.ndarray
             Match's board history.
-        hist_pv : list
-            Match's policy and value history.
+        hist_policy : np.ndarray
+            Match's policy history.
+        hist_value : np.ndarray
+            Match's value history.
 
         Returns
         -------
@@ -63,24 +110,24 @@ class SelfMatch:
 
         '''
         os.makedirs('histories_input', exist_ok=True)
-        os.makedirs('histories_policy_value', exist_ok=True)
+        os.makedirs('histories_policy', exist_ok=True)
+        os.makedirs('histories_value', exist_ok=True)
 
-        path = os.path.join('histories_input', '{}.history'.format(epochs))
-        with open(path, 'wb') as f:
-            pickle.dump(hist_input, f)
+        path = os.path.join('histories_input', '{}.npy'.format(epochs))
+        np.save(path, hist_input)
+        path = os.path.join('histories_policy', '{}.npy'.format(epochs))
+        np.save(path, hist_policy)
+        path = os.path.join('histories_value', '{}.npy'.format(epochs))
+        np.save(path, hist_value)
 
-        path = os.path.join('histories_policy_value', '{}.history'.format(epochs))
-        with open(path, 'wb') as f:
-            pickle.dump(hist_pv, f)
-
-    def match(self, net, algo, simulations, gamma):
+    def match(self, net, algo, simulations, gamma, j):
         '''
 
         Parameters
         ----------
         net : Neural Network
             Neural network class defined in network.py.
-            This class has instance variable "model",
+                his class has instance variable "model",
             which is tensorflow.keras.models.Model
         algo : Monte-Carlo Class
             Monte-Carlo algorithm class.
@@ -91,39 +138,49 @@ class SelfMatch:
 
         Returns
         -------
-        hist_input : list
+        hist_input : np.ndarray
             Match's board history.
-        hist_pv : list
-            Match's policy and value history.
+        hist_policy : np.ndarray
+            Match's policy history.
+        hist_value : np.ndarray
+            Match's value history.
         ret : int
             Match Value.
 
         '''
         board = Board()
-        hist_input, hist_pv = [], []
-        turn = 0
+        hist_input, hist_policy = None, None
 
         while not board.is_over():
             probs = algo.get_probs(net, board, simulations, gamma)
-            policy = [0 for _ in range(config.OUTPUT_SHAPE)]
-
+            policy = np.zeros(config.OUTPUT_SHAPE)
             for a, p in zip(board.takable_actions(), probs):
                 policy[a] = p
-            hist_input.append(board.reshape_input())
-            hist_pv.append([policy, None])
+
+            inp = board.reshape_input()
+            if hist_input is None:
+                hist_input = inp.copy()
+            else:
+                hist_input = np.vstack([hist_input, inp])
+
+            if hist_policy is None:
+                hist_policy = policy.copy()
+            else:
+                hist_policy = np.vstack([hist_policy, policy])
 
             action = np.random.choice(board.takable_actions(), p=probs)
             old_board = deepcopy(board)
             board = old_board.next_board(action)
-            turn += 1
+            print(j)
 
         value = self.first_play_value(board)
         ret = value
-        for i in range(len(hist_pv)):
-            hist_pv[i][1] = value
+        hist_value = np.zeros(hist_policy.shape[0])
+        for i in range(len(hist_value)):
+            hist_value[i] = value
             value *= -1
 
-        return hist_input, hist_pv, ret
+        return hist_input, hist_policy, hist_value, ret
 
     def selfmatch(self, net, algo, matches, simulations, gamma, epoches=0):
         '''
@@ -150,16 +207,36 @@ class SelfMatch:
         None.
 
         '''
-        hist_inputs, hist_pvs, results = [], [], []
+        hist_inputs, hist_policies, hist_values, results = None, None, None, []
+        for i in range(matches // (os.cpu_count() * 5)):
+            print('Self Play Repeats: {}'.format(i), end='')
+            fs = []
+            with futures.ThreadPoolExecutor() as executor:
+                for j in range(os.cpu_count() * 5):
+                    fs.append(executor.submit(single_match, net, algo, simulations, gamma, j))
+                for f in futures.as_completed(fs):
+                    res = f.result()
+                    hist_input, hist_policy, hist_value, value = res
 
-        for i in range(matches):
-            print('\rSelf Play: {}/{} => '.format(i + 1, matches), end='')
-            hist_input, hist_pv, value = self.match(net, algo, simulations, gamma)
+                    results.append(value)
 
-            hist_inputs.extend(hist_input)
-            hist_pvs.extend(hist_pv)
-            results.append(value)
-            print(value, end='')
+                    if hist_inputs is None:
+                        hist_inputs = hist_input.copy()
+                    else:
+                        hist_inputs = np.vstack([hist_inputs, hist_input])
+
+                    if hist_policies is None:
+                        hist_policies = hist_policy.copy()
+                    else:
+                        hist_policies = np.vstack([hist_policies, hist_policy])
+
+                    if hist_values is None:
+                        hist_values = hist_value.copy()
+                    else:
+                        hist_values = np.append(hist_values, hist_value)
+                    print(hist_input.shape, hist_policy.shape, hist_value.shape)
+                    print(hist_inputs.shape, hist_policies.shape, hist_values.shape)
+                    print('*' * 50)
 
         self.log.log_result(results, epoches)
-        self._save_history(hist_inputs, hist_pvs, epoches)
+        self._save_history(hist_inputs, hist_policies, hist_values, epoches)

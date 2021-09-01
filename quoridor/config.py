@@ -1,8 +1,8 @@
 '''
 Hyper Paramators
 '''
-LENGTH = 5
-WALLS = 4
+LENGTH = 9
+WALLS = 10
 BREAK = 112
 INPUT_SHAPE = (LENGTH, LENGTH, 4 + WALLS * 2)
 OUTPUT_SHAPE = 8 + 2 * (LENGTH - 1) * (LENGTH - 1)
@@ -21,6 +21,8 @@ GAMMA = 1.0
 # self match times.
 SELFMATCH = 200 # 25000
 CYCLES = 200
+PARALLEL_CPUs = 8
+PARALLEL_GPUs = 0
 # Evaluation times per one evaluation
 EVAL_MATCH = 20 # 400
 C_PUT = 1.0

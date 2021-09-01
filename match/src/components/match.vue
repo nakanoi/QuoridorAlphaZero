@@ -9,7 +9,7 @@
       </div>
     </div>
     <div v-else-if="loading">
-      <h2>loading....</h2> 
+      <h2>loading....</h2>
     </div>
     <div v-else>
       <div id="draw-wrap">

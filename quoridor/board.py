@@ -204,6 +204,35 @@ class Pawn:
         self.walls = WALLS
 
 
+class UnionFind:
+    def __init__(self):
+        self.pars = [-1 for _ in range(LENGTH ** 2)]
+        self.sizes = [1 for _ in range(LENGTH ** 2)]
+
+    def root(self, x):
+        if self.pars[x] == -1:
+            return x
+        else:
+            self.pars[x] = self.root(self.pars[x])
+            return self.pars[x]
+
+    def issame(self, x, y):
+        return self.root(x) == self.root(y)
+
+    def unite(self, x, y):
+        x, y = self.root(x), self.root(y)
+        if x == y: return False
+        if self.size(x) < self.size(y):
+            x, y = y, x
+        self.pars[y] = x
+        self.sizes[x] += self.sizes[y]
+
+        return True
+
+    def size(self, x):
+        return self.sizes[self.root(x)]
+
+
 class Board:
     '''
 
@@ -503,6 +532,58 @@ class Board:
             blockable = 0
 
         return blockable
+    
+    def _build_union_find(self):
+        '''
+
+        Parameters
+        ----------
+        None.
+
+        Returns
+        -------
+        uf : UnionFind
+            Union Find Class which considers for self.block.
+
+        '''
+        uf = UnionFind()
+        for i in range(LENGTH):
+            for j in range(LENGTH):
+                idx = self._position_to_idx([i, j])
+                if j < LENGTH - 1 and self.wall_vertical.open_vertical[i, j] == 1:
+                    uf.unite(idx, idx + 1)
+                if i < LENGTH - 1 and self.wall_horizontal.open_horizontal[i, j] == 1:
+                    uf.unite(idx, idx + LENGTH)
+
+        return uf
+
+    def _union_find_goalable(self, uf, is_self):
+        '''
+
+        Parameters
+        ----------
+        uf : UnionFind
+            Union Find Class which considers for self.block.
+
+        is_self : Bool
+            Is this check for Self or Other.
+
+        Returns
+        -------
+        res : bool
+            Is this block valid. When valid, return True.
+
+        '''
+        self_idx = self._position_to_idx(self.pawn_self.position)
+        other_idx = self._position_to_idx(self.pawn_other_position)
+        for g in range(LENGTH):
+            if is_self:
+                res = uf.issame(self_idx, self._position_to_idx([LENGTH - 1, g]))
+            else:
+                res = uf.issame(other_idx, self._position_to_idx([0, g]))
+            if res: return True
+
+        return False
 
     def is_lose(self):
         '''
@@ -624,43 +705,19 @@ class Board:
             blockable = [0 for _ in range(2 * (LENGTH - 1) * (LENGTH - 1))]
             return blockable
 
-        def dfs(pawn, seen, first=True):
-            if first:
-                if pawn[0] == LENGTH - 1:
-                    return 1
-            else:
-                if pawn[0] == 0:
-                    return 1
-            seen[pawn[0] * LENGTH + pawn[1]] = True
-            order = (0, 1, 3, 2) if first else (2, 3, 2, 0)
-
-            for i in order:
-                new_pawn = pawn + self.moves[i]
-                # Position After Move is in Board and This Move is Valid
-                if 0 <= new_pawn[0] <= LENGTH - 1 and 0 <= new_pawn[1] <= LENGTH - 1 and self._is_movable_from_move(pawn, new_pawn):
-                    if seen[new_pawn[0] * LENGTH + new_pawn[1]]:
-                        continue
-                    if dfs(new_pawn, seen, first = first):
-                        return 1
-
-            return 0
-
         # Where are blocks already build
         vertical, horizontal = [1 for _ in range((LENGTH - 1) ** 2)], [1 for _ in range((LENGTH - 1) ** 2)]
         for v in range(LENGTH - 1):
             for h in range(LENGTH - 1):
                 # If this point hasnt been built wall
                 if self._is_blockable_vertical(v, h):
-                    # DFS
-                    visited_s = [False for _ in range(LENGTH ** 2)]
-                    visited_o = [False for _ in range(LENGTH ** 2)]
-                    pawn_s = self.pawn_self.position.copy()
-                    pawn_o = self.pawn_other_position.copy()
                     self.wall_vertical.open_vertical[v, h] = 0
                     self.wall_vertical.open_vertical[v + 1, h] = 0
                     self.wall.vertical[v, h] = 0
-                    res_s = dfs(pawn_s, visited_s)
-                    res_o = dfs(pawn_o, visited_o, first=False)
+                    uf = self._build_union_find()
+                    res_s = self._union_find_goalable(uf, True)
+                    res_o = self._union_find_goalable(uf, False)
+
                     if not res_s or not res_o:
                         vertical[v * (LENGTH - 1) + h] = 0
 
@@ -672,16 +729,13 @@ class Board:
 
                 # If this point hasnt been built wall
                 if self._is_blockable_horizontal(v, h):
-                    # DFS
-                    visited_s = [False for _ in range(LENGTH ** 2)]
-                    visited_o = [False for _ in range(LENGTH ** 2)]
-                    pawn_s = self.pawn_self.position.copy()
-                    pawn_o = self.pawn_other_position.copy()
                     self.wall_horizontal.open_horizontal[v, h] = 0
                     self.wall_horizontal.open_horizontal[v, h + 1] = 0
                     self.wall.horizontal[v, h] = 0
-                    res_s = dfs(pawn_s, visited_s)
-                    res_o = dfs(pawn_o, visited_o, first=False)
+                    uf = self._build_union_find()
+                    res_s = self._union_find_goalable(uf, True)
+                    res_o = self._union_find_goalable(uf, False)
+
                     if not res_s or not res_o:
                         horizontal[v * (LENGTH - 1) + h] = 0
 

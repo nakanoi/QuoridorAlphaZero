@@ -3,11 +3,11 @@ import os
 
 class Log:
     def __init__(self):
-        os.makedirs('logs', exist_ok=True)
-        self.loss_total = os.path.join('logs', 'loss_total.log')
-        self.loss_policy = os.path.join('logs', 'loss_policy.log')
-        self.loss_value = os.path.join('logs', 'loss_value.log')
-        self.match_result = os.path.join('logs', 'match.log')
+        os.makedirs(os.path.join('.', 'logs'), exist_ok=True)
+        self.loss_total = os.path.join('.', 'logs', 'loss_total.log')
+        self.loss_policy = os.path.join('.', 'logs', 'loss_policy.log')
+        self.loss_value = os.path.join('.', 'logs', 'loss_value.log')
+        self.match_result = os.path.join('.', 'logs', 'match.log')
 
     def log_loss(self, hist, epoch):
         with open(self.loss_total, 'a') as f:

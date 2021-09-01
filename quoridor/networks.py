@@ -4,7 +4,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np
 import os
-import pickle
 from tensorflow.keras.layers import (Dense, Activation, Input, Conv2D, Add, LeakyReLU,
                                      BatchNormalization, GlobalAveragePooling2D,
                                      )
@@ -110,11 +109,9 @@ class Network:
 
         if load:
             self.load_network(filename=load_file)
-            self._load_members()
         else:
             self._num2list()
             self._build_model()
-            self._save_members()
             self.clean()
 
     def _build_model(self):
@@ -235,61 +232,6 @@ class Network:
                 continue
             setattr(self, key, [member] * (self.res_num + 1))
 
-    def _save_members(self):
-        '''
-
-        Parameters
-        ----------
-        None.
-
-        Returns
-        -------
-        None.
-
-        '''
-        if self.cwd is None:
-            path = os.path.abspath('networks')
-        else:
-            path = os.path.abspath(os.path.join(self.cwd, 'networks'))
-        os.makedirs(path, exist_ok=True)
-        members = {}
-
-        for key in self.__dict__.keys():
-            member = getattr(self, key)
-            if key in self.args:
-                members[key] = member
-
-        if self.cwd is None:
-            path = os.path.abspath(os.path.join('networks', 'member.h5'))
-        else:
-            path = os.path.abspath(os.path.join(self.cwd, 'networks', 'member.h5'))
-
-        with open(path, 'wb') as f:
-            pickle.dump(members, f)
-
-    def _load_members(self):
-        '''
-
-        Parameters
-        ----------
-        None.
-
-        Returns
-        -------
-        None.
-
-        '''
-        if self.cwd is None:
-            path = os.path.abspath(os.path.join('networks', 'member.h5'))
-        else:
-            path = os.path.abspath(os.path.join(self.cwd, 'networks', 'member.h5'))
-
-        with open(path, 'rb') as f:
-            members = pickle.load(f)
-
-        for k, v in members.items():
-            setattr(self, k, v)
-
     def _load_history(self, e):
         '''
 
@@ -304,18 +246,22 @@ class Network:
 
         '''
         if self.cwd is None:
-            path = os.path.abspath(os.path.join('histories_input', '{}.history'.format(e)))
+            path = os.path.abspath(os.path.join('histories_input', '{}.npy'.format(e)))
         else:
-            path = os.path.abspath(os.path.join(self.cwd, 'histories_input', '{}.history'.format(e)))
-        with open(path, 'rb') as f:
-            self.history_input = pickle.load(f)
+            path = os.path.abspath(os.path.join(self.cwd, 'histories_input', '{}.npy'.format(e)))
+        self.history_input = np.load(path)
 
         if self.cwd is None:
-            path = os.path.abspath(os.path.join('histories_policy_value', '{}.history'.format(e)))
+            path = os.path.abspath(os.path.join('histories_policy', '{}.npy'.format(e)))
         else:
-            path = os.path.abspath(os.path.join(self.cwd, 'histories_policy_value', '{}.history'.format(e)))
-        with open(path, 'rb') as f:
-            self.history_policy_value = pickle.load(f)
+            path = os.path.abspath(os.path.join(self.cwd, 'histories_policy', '{}.npy'.format(e)))
+        self.history_policy = np.load(path)
+
+        if self.cwd is None:
+            path = os.path.abspath(os.path.join('histories_value', '{}.npy'.format(e)))
+        else:
+            path = os.path.abspath(os.path.join(self.cwd, 'histories_value', '{}.npy'.format(e)))
+        self.history_value = np.load(path)
 
     def clean(self):
         '''
@@ -365,14 +311,10 @@ class Network:
         )
 
         self._load_history(cycle_epoch)
-        xs = self.history_input
-        policy, value = zip(*self.history_policy_value)
-        policy = np.array(policy)
-        value = np.array(value)
 
         hist = self.model.fit(
-            xs,
-            [policy, value],
+            self.history_input,
+            [self.history_policy, self.history_value],
             batch_size = batch_size,
             epochs = epochs,
             verbose = False,
@@ -420,4 +362,3 @@ class Network:
         else:
             path = os.path.abspath(os.path.join(self.cwd, 'networks', filename))
         self.model = load_model(path)
-        self._load_members()

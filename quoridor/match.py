@@ -177,10 +177,8 @@ class Match:
 
         else:
             if board.is_first():
-                print('FIRST')
                 action = actions[0](net, board, action_idx)
             else:
-                print('SECOND')
                 action = actions[1](net, board, action_idx)
 
             old_board = deepcopy(board)

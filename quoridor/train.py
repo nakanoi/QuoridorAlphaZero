@@ -1,3 +1,4 @@
+import glob
 from match import Match
 from networks import Network
 from montecarlo import MCTS
@@ -20,8 +21,9 @@ if __name__ == '__main__':
     mcts = MCTS(config.C_PUT)
     match = Match()
     selfmatch = SelfMatch()
+    start = len(glob.glob('./histories_input/*'))
 
-    for i in range(config.CYCLES):
+    for i in range(start, config.CYCLES, 1):
         print('********** Train for {} / {} **********'.format(i + 1, config.CYCLES))
         net = Network(load=True, )
         selfmatch.selfmatch(

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="boards.board == null">
+    <div v-if="selectFirstSecond">
       <div>
         <p>Select You Are</p>
         <button @click="firstSecond(false)" class="firstsecond first">First</button>
@@ -8,73 +8,78 @@
         <button @click="firstSecond(true)" class="firstsecond second">Second</button>
       </div>
     </div>
+    <div v-else-if="loading">
+      <h2>loading....</h2> 
+    </div>
     <div v-else>
       <div id="draw-wrap">
         <div class="own-wrap own-wrap-self">
           <p class="own-text">WALLS YOU HAVE</p>
           <div id="walls_other" class="own_walls walls_self">
-            <div v-for="i in boards.board.walls_self" :key="i" class="own own_other"></div>
-            <div v-for="i in walls - boards.board.walls_self" :key="i" class="own own_other own_transepose"></div>
+            <div v-for="a in boards.board.walls_self" v-bind:key="a" class="own own_self"></div>
+            <div v-for="b in boards.walls - boards.board.walls_self" v-bind:key="b" class="own own_self own_transepose"></div>
           </div>
         </div>
         <div id="draw">
-          <div v-for="i in len" :key="i" class="row-wrap">
+          <div v-for="i in boards.len" v-bind:key="i" class="row-wrap">
             <div class="row row-top">
-              <div v-for="j in len" :key="j">
-                <div @click="pawnClick((i - 1) * len + (j - 1))" class="grid"></div>
+              <div v-for="j in boards.len" v-bind:key="j">
+                <div @click="pawnClick((i - 1) * boards.len + (j - 1))" class="grid"></div>
 
-                <div v-if="i != len && j != len && boards.board.takables.includes(8 + (i - 1) * (len - 1) + (j - 1))"
-                  v-on:mouseover="wallOver(8 + (i - 1) * (len - 1) + (j - 1), true)"
-                  v-on:mouseleave="wallLeave(8 + (i - 1) * (len - 1) + (j - 1), true)"
-                  @click="wallClick(8 + (i - 1) * (len - 1) + (j - 1), true)"
+                <div v-if="i != len && j != boards.len && boards.board.takables.includes(8 + (i - 1) * (boards.len - 1) + (j - 1))"
+                  v-on:mouseover="wallOver(8 + (i - 1) * (boards.len - 1) + (j - 1), true)"
+                  v-on:mouseleave="wallLeave(8 + (i - 1) * (boards.len - 1) + (j - 1), true)"
+                  @click="wallClick(8 + (i - 1) * (boards.len - 1) + (j - 1), true)"
                   class="wall wall_v"></div>
-                <div v-else-if="i != len && j != len" class="wall wall_v"></div>
-                <div v-else-if="i == len && j != len" class="wall wall_v"></div>
+                <div v-else-if="i != boards.len && j != boards.len" class="wall wall_v"></div>
+                <div v-else-if="i == boards.len && j != boards.len" class="wall wall_v"></div>
               </div>
             </div>
             <div class="row row-bottom">
-              <div v-for="j in len" :key="j">
-                <div v-if="i != len && j != len && boards.board.takables.includes(8 + (len - 1) ** 2 + (i - 1) * (len - 1) + (j - 1))"
-                  v-on:mouseover="wallOver(8 + (len - 1) * len + (i - 1) * len + (j - 1), false)"
-                  v-on:mouseleave="wallLeave(8 + (len - 1) * len + (i - 1) * len + (j - 1), false)"
-                  @click="wallClick(8 + (len - 1) ** 2 + (i - 1) * (len - 1) + (j - 1), false)"
+              <div v-for="k in boards.len" v-bind:key="k">
+                <div v-if="i != boards.len && k != boards.len && boards.board.takables.includes(8 + (boards.len - 1) * (boards.len - 1) + (i - 1) * (boards.len - 1) + (k - 1))"
+                  v-on:mouseover="wallOver(8 + (boards.len - 1) * boards.len + (i - 1) * boards.len + (k - 1), false)"
+                  v-on:mouseleave="wallLeave(8 + (boards.len - 1) * boards.len + (i - 1) * boards.len + (k - 1), false)"
+                  @click="wallClick(8 + (boards.len - 1) ** 2 + (i - 1) * (boards.len - 1) + (k - 1), false)"
                   class="wall wall_h"></div>
-                <div v-else-if="i != len && j != len" class="wall wall_h"></div>
-                <div v-else-if="i != len" class="wall wall_h"></div>
+                <div v-else-if="i != boards.len && k != boards.len" class="wall wall_h"></div>
+                <div v-else-if="i != boards.len" class="wall wall_h"></div>
 
-                <div v-if="i != len && j != len" class="blank" open="0"></div>
+                <div v-if="i != boards.len && k != boards.len" class="blank" open="0"></div>
               </div>
             </div>
           </div>
         </div>
         <div class="own-wrap own-wrap-other">
           <div id="walls_self" class="own_walls walls_other">
-            <div v-for="i in walls - boards.board.walls_other" :key="i" class="own own_other own_transepose"></div>
-            <div v-for="i in boards.board.walls_other" :key="i" class="own own_other"></div>
+            <div v-for="c in boards.walls - boards.board.walls_other" v-bind:key="c" class="own own_other own_transepose"></div>
+            <div v-for="d in boards.board.walls_other" v-bind:key="d" class="own own_other"></div>
           </div>
           <p class="own-text">WALLS NETWORK HAS</p>
         </div>
       </div>
-      <button @click="getBoard()" class="confirm">Send Action</button>
+      <p v-if="isWin" class="result result-win">You Win.</p>
+      <p v-else-if="isLose" class="result result-lose">You Lose.</p>
+      <button v-if="isOver"><a href="http://127.0.0.1:5000">Rematch</a></button>
+      <button v-else-if="'take_action' in boards.board" @click="getBoard()" class="confirm">Send Action</button>
     </div>
   </div>
 </template>
 
 <script>
-import Vue from 'vue'
 import axios from 'axios'
 
 export default {
   name: 'Board',
-  data () {
+  data: function () {
     return {
       boards: {
         'board': null,
         'oldBoard': null,
-        'net': true
-      },
-      len: 9,
-      walls: 10
+        'net': null,
+        'len': 9,
+        'walls': 10
+      }
     }
   },
   methods: {
@@ -87,11 +92,11 @@ export default {
       var wallHs = document.getElementsByClassName('wall_h')
       const moves = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 
-      for (i = 0; i < this.len; i++) {
-        for (j = 0; j < this.len; j++) {
+      for (i = 0; i < this.boards.len; i++) {
+        for (j = 0; j < this.boards.len; j++) {
           // pawn position
-          var pawn = pawns[i * this.len + j]
-          pawn.setAttribute('pawn', i * this.len + j)
+          var pawn = pawns[i * this.boards.len + j]
+          pawn.setAttribute('pawn', i * this.boards.len + j)
           if (this.boards.board['pawn_self']['position'][0] === i && this.boards.board['pawn_self']['position'][1] === j) {
             pawn.setAttribute('exists', 'self')
           } else if (this.boards.board['pawn_other_position'][0] === i && this.boards.board['pawn_other_position'][1] === j) {
@@ -99,21 +104,23 @@ export default {
           } else {
             var movable = false
             // takable actions
-            for (var k = 0; k < this.boards.board['takables'].length; k++) {
-              for (var l = 0; l < 4; l++) {
-                if (this.boards.board['takables'][k] === l) {
-                  if (this.boards.board['pawn_self']['position'][0] + moves[l][0] === i && this.boards.board['pawn_self']['position'][1] + moves[l][1] === j) {
-                    pawn.setAttribute('exists', 'possible')
-                    pawn.setAttribute('action', l)
-                    movable = true
-                    break
-                  }
-                } else if (this.boards.board['takables'][k] === l + 4) {
-                  if (this.boards.board['pawn_other_position'][0] + moves[l][0] === i && this.boards.board['pawn_other_position'][1] + moves[l][1] === j) {
-                    pawn.setAttribute('exists', 'possible')
-                    pawn.setAttribute('action', l + 4)
-                    movable = true
-                    break
+            if (this.boards.board['over'] === false) {
+              for (var k = 0; k < this.boards.board['takables'].length; k++) {
+                for (var l = 0; l < 4; l++) {
+                  if (this.boards.board['takables'][k] === l) {
+                    if (this.boards.board['pawn_self']['position'][0] + moves[l][0] === i && this.boards.board['pawn_self']['position'][1] + moves[l][1] === j) {
+                      pawn.setAttribute('exists', 'possible')
+                      pawn.setAttribute('action', l)
+                      movable = true
+                      break
+                    }
+                  } else if (this.boards.board['takables'][k] === l + 4) {
+                    if (this.boards.board['pawn_other_position'][0] + moves[l][0] === i && this.boards.board['pawn_other_position'][1] + moves[l][1] === j) {
+                      pawn.setAttribute('exists', 'possible')
+                      pawn.setAttribute('action', l + 4)
+                      movable = true
+                      break
+                    }
                   }
                 }
               }
@@ -123,50 +130,56 @@ export default {
             }
           }
 
-          if (j !== this.len - 1) {
+          if (j !== this.boards.len - 1 && this.boards.board['over'] === false) {
             // wall vertical
-            var wallV = wallVs[i * (this.len - 1) + j]
-            wallV.setAttribute('open_vertical', i * (this.len - 1) + j)
+            var wallV = wallVs[i * (this.boards.len - 1) + j]
+            wallV.setAttribute('open_vertical', i * (this.boards.len - 1) + j)
             wallV.setAttribute('open', this.boards.board['wall_vertical']['open_vertical'][i][j])
-            wallV.setAttribute('hover', 8 + i * (this.len - 1) + j)
-            act = 8 + i * (this.len - 1) + j
-            if (i !== this.len - 1 && this.boards.board['wall_vertical']['open_vertical'][i][j] === 1 && this.boards.board['takables'].includes(act)) {
+            wallV.setAttribute('hover', 8 + i * (this.boards.len - 1) + j)
+            act = 8 + i * (this.boards.len - 1) + j
+            if (i !== this.boards.len - 1 && this.boards.board['wall_vertical']['open_vertical'][i][j] === 1 && this.boards.board['takables'].includes(act)) {
               wallV.setAttribute('action', act)
             }
           }
         }
 
-        if (i !== this.len - 1) {
-          for (j = 0; j < this.len; j++) {
+        if (i !== this.boards.len - 1 && this.boards.board['over'] === false) {
+          for (j = 0; j < this.boards.len; j++) {
             // wall horizontal
-            var wallH = wallHs[i * this.len + j]
-            wallH.setAttribute('open_horizontal', i * this.len + j)
+            var wallH = wallHs[i * this.boards.len + j]
+            wallH.setAttribute('open_horizontal', i * this.boards.len + j)
             wallH.setAttribute('open', this.boards.board['wall_horizontal']['open_horizontal'][i][j])
-            wallH.setAttribute('hover', 8 + (this.len - 1) * this.len + i * this.len + j)
-            act = 8 + (this.len - 1) * (this.len - 1) + i * (this.len - 1) + j
-            if (j !== this.len - 1 && this.boards.board['wall_horizontal']['open_horizontal'][i][j] === 1 && this.boards.board['takables'].includes(act)) {
+            wallH.setAttribute('hover', 8 + (this.boards.len - 1) * this.boards.len + i * this.boards.len + j)
+            act = 8 + (this.boards.len - 1) * (this.boards.len - 1) + i * (this.boards.len - 1) + j
+            if (j !== this.boards.len - 1 && this.boards.board['wall_horizontal']['open_horizontal'][i][j] === 1 && this.boards.board['takables'].includes(act)) {
               wallH.setAttribute('action', act)
             }
           }
         }
       }
     },
-    getBoard () {
+    async getAPI () {
       this.cleanSelected()
       const path = `http://127.0.0.1:5000/api/action`
-      Vue.set(this.boards, 'oldBoard', this.boards.board)
+      this.$set(this.boards, 'oldBoard', this.boards.board)
       if (this.boards.oldBoard === null) {
-        Vue.set(this.boards, 'oldBoard', {'network_first': this.boards['net']})
+        this.$set(this.boards, 'oldBoard', {'network_first': this.boards['net']})
       }
-
-      axios.post(path, this.boards.oldBoard)
+      this.boards.board = null
+      const res = await axios.post(path, this.boards.oldBoard)
         .then(response => {
-          Vue.set(this.boards, 'board', response.data)
-          this.drawBoard()
+          this.$set(this.boards, 'board', JSON.parse(response.data))
         })
         .catch(error => {
           console.log(error)
         })
+      this.$nextTick(() => {
+        this.drawBoard()
+      })
+      return res
+    },
+    getBoard () {
+      this.getAPI()
     },
     firstSecond (first) {
       if (first === true) {
@@ -182,7 +195,7 @@ export default {
       var wallBottom = null
 
       if (vertical === true) {
-        wallBottom = document.querySelector('div[hover="' + String(hover + this.len - 1) + '"]')
+        wallBottom = document.querySelector('div[hover="' + String(hover + this.boards.len - 1) + '"]')
       } else {
         wallBottom = document.querySelector('div[hover="' + String(hover + 1) + '"]')
       }
@@ -195,7 +208,7 @@ export default {
       var wallBottom = null
 
       if (vertical === true) {
-        wallBottom = document.querySelector('div[hover="' + String(hover + this.len - 1) + '"]')
+        wallBottom = document.querySelector('div[hover="' + String(hover + this.boards.len - 1) + '"]')
       } else {
         wallBottom = document.querySelector('div[hover="' + String(hover + 1) + '"]')
       }
@@ -220,7 +233,7 @@ export default {
         var action = pawn.getAttribute('action')
         pawn.classList.add('pawn-selected')
 
-        this.boards.board['take_action'] = Number(action)
+        this.$set(this.boards.board, 'take_action', Number(action))
       }
     },
     wallClick (action, vertical) {
@@ -230,16 +243,39 @@ export default {
       var hover = clickedWall.getAttribute('hover')
       var clickedWallBottom = document.querySelector('div[hover="' + String(Number(hover) + 1) + '"]')
       if (vertical === true) {
-        clickedWallBottom = document.querySelector('div[hover="' + String(Number(hover) + this.len - 1) + '"]')
+        clickedWallBottom = document.querySelector('div[hover="' + String(Number(hover) + this.boards.len - 1) + '"]')
       }
 
       clickedWall.classList.add('wall-selected')
       clickedWallBottom.classList.add('wall-selected')
-      this.boards.board['take_action'] = Number(action)
+      this.$set(this.boards.board, 'take_action', Number(action))
     }
   },
-  updated () {
-    this.drawBoard()
+  computed: {
+    selectFirstSecond: function () {
+      return this.boards.board === null && this.boards.net == null
+    },
+    loading: function () {
+      return this.boards.board === null
+    },
+    isWin: function () {
+      return this.boards.board.over === true && this.boards.board.point === 1
+    },
+    isLose: function () {
+      return this.boards.board.over === true && this.boards.board.point === 0
+    },
+    isOver: function () {
+      return this.boards.board.over === true
+    },
+    showSelfWalls: function () {
+      return this.boards.board.walls_self
+    },
+    showOtherWalls: function () {
+      return this.boards.board.walls_other
+    },
+    showState: function () {
+      return this.boards.board
+    }
   }
 }
 </script>
@@ -384,6 +420,18 @@ button:hover {
 }
 .own_transepose {
   background: transparent !important;
+}
+.result {
+  padding: .2em 0;
+  font-size: 16px;
+  color: rgb(247, 20, 20);
+}
+.result-lose {
+  color: rgb(0, 3, 192);
+}
+a {
+  color: black;
+  text-decoration: none;
 }
 
 </style>

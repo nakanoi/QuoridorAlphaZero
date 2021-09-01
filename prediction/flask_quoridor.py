@@ -4,7 +4,7 @@ sys.path.append('..')
 sys.path.append('../quoridor')
 import json
 from copy import deepcopy
-from build_json import Encoder, Decoder
+from build_json import board_to_dict, dict_to_board
 from quoridor import config
 from quoridor.board import Board
 from quoridor.montecarlo import MCTS
@@ -24,41 +24,42 @@ def take_action():
     mcts = MCTS(config.C_PUT)
     match = Match()
     actions = [mcts.take_match_action, mcts.person_action]
-    board_json = request.get_json()
+    board_dict = request.get_json()
     cwd = './../quoridor'
-    network_first = board_json['network_first']
+    network_first = board_dict['network_first']
 
-    if 'pawn_self' not in board_json:
-        new_board = Board()
-        over = False
-        point = None
+    if 'pawn_self' not in board_dict:
+        board = Board()
+        new_board = deepcopy(board)
+        over, point = False, None
         if network_first:
-            board = deepcopy(new_board)
-            over, new_board, point = match.play_with(board, actions, None, cwd=cwd)
+            over, new_board, point = match.play_with(new_board, actions, None, cwd=cwd)
 
     else:
-        if not board_json['network_first']:
+        if not board_dict['network_first']:
             actions = actions[::-1]
 
-        str_board = json.dumps(board_json)
-        board = json.loads(str_board, cls=Decoder)
-        over, new_board, point = match.play_with(board, actions, int(board_json['take_action']), cwd=cwd)
+        # Player
+        board = dict_to_board(board_dict)
+        over, new_board, point = match.play_with(board, actions, int(board_dict['take_action']), cwd=cwd)
+        # Network
+        board = deepcopy(new_board)
+        over, new_board, point = match.play_with(board, actions, None, cwd=cwd)
+
         if over:
-            print('Over.')
-            if new_board.is_first():
-                print('FIRST LOSE', point)
-            else:
-                print('FIRST WIN', point)
-        else:
-            board = deepcopy(new_board)
-            over, new_board, point = match.play_with(board, actions, None, cwd=cwd)
+            new_board_dic = board_to_dict(new_board)
+            new_board_dic['over'] = True
+            new_board = dict_to_board(new_board_dic)
+            point = 1
+        elif new_board.is_over():
+            over = True
+            point = 0
 
-    new_board_json = json.dumps(new_board, cls=Encoder, indent=4)
-    new_board_json = json.loads(new_board_json)
-
-    new_board_json.setdefault('over', over)
-    new_board_json.setdefault('point', point)
-    new_board_json.setdefault('network_first', network_first)
+    new_board_dic = board_to_dict(new_board)
+    new_board_dic.setdefault('over', over)
+    new_board_dic.setdefault('point', point)
+    new_board_dic.setdefault('network_first', network_first)
+    new_board_json = json.dumps(new_board_dic)
 
     return jsonify(new_board_json)
 

@@ -12,6 +12,7 @@ from tensorflow.keras.regularizers import l2
 import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import LearningRateScheduler, LambdaCallback
 from logs import Log
+import config
 
 
 class Network:
@@ -46,14 +47,6 @@ class Network:
 
     '''
     def __init__(self,
-                 input_shape = None,
-                 output_shape = None,
-                 filters = None,
-                 kernel_sizes = None,
-                 strides = None,
-                 initializers = None,
-                 regularizers = None,
-                 res_num = None,
                  load = False,
                  load_file = 'best_network.h5',
                  cwd = None,
@@ -62,20 +55,6 @@ class Network:
 
         Attribute
         ----------
-        input_shape : tupple
-            Network's input shape.
-        output_shape : int
-            Network's output shape
-        filters : int, list
-            Conv2d's filter(s).
-        kernel_sizes : int, list
-            Conv2d's kernel_size(s).
-        strides : int, list
-            Conv2d's stride(s).
-        initializers : int, list
-            Conv2d's initializer(s).
-        regularizers : int, list
-            Conv2d's regularizer(s).
         res_num : int
             ResNet's layer num.
         load : bool
@@ -86,14 +65,14 @@ class Network:
             Current dirctory.
 
         '''
-        self.input_shape = input_shape
-        self.output_shape = output_shape
-        self.filters = filters
-        self.kernel_sizes = kernel_sizes
-        self.strides = strides
-        self.initializers = initializers
-        self.regularizers = regularizers
-        self.res_num = res_num
+        self.input_shape = config.INPUT_SHAPE
+        self.output_shape = config.OUTPUT_SHAPE
+        self.filters = config.FILTER
+        self.kernel_sizes = config.KERNEL
+        self.strides = config.STRIDE
+        self.initializers = config.INITIALIZER
+        self.regularizers = config.REGULARIZER
+        self.res_num = config.RES_NUM
         self.cwd = cwd
         self.args = set((
             'input_shape',
@@ -232,7 +211,7 @@ class Network:
                 continue
             setattr(self, key, [member] * (self.res_num + 1))
 
-    def _load_history(self, e):
+    def _load_history(self, epoch):
         '''
 
         Parameters
@@ -246,22 +225,26 @@ class Network:
 
         '''
         if self.cwd is None:
-            path = os.path.abspath(os.path.join('histories_input', '{}.npy'.format(e)))
+            path_i = os.path.abspath(os.path.join('histories_input', str(epoch)))
+            path_p = os.path.abspath(os.path.join('histories_policy', str(epoch)))
+            path_v = os.path.abspath(os.path.join('histories_value', str(epoch)))
         else:
-            path = os.path.abspath(os.path.join(self.cwd, 'histories_input', '{}.npy'.format(e)))
-        self.history_input = np.load(path)
+            path_i = os.path.abspath(os.path.join(self.cwd, 'histories_input', str(epoch)))
+            path_p = os.path.abspath(os.path.join(self.cwd, 'histories_policy', str(epoch)))
+            path_v = os.path.abspath(os.path.join(self.cwd, 'histories_value', str(epoch)))
 
-        if self.cwd is None:
-            path = os.path.abspath(os.path.join('histories_policy', '{}.npy'.format(e)))
-        else:
-            path = os.path.abspath(os.path.join(self.cwd, 'histories_policy', '{}.npy'.format(e)))
-        self.history_policy = np.load(path)
-
-        if self.cwd is None:
-            path = os.path.abspath(os.path.join('histories_value', '{}.npy'.format(e)))
-        else:
-            path = os.path.abspath(os.path.join(self.cwd, 'histories_value', '{}.npy'.format(e)))
-        self.history_value = np.load(path)
+        for i in range(config.SELFMATCH):
+            if i == 0:
+                self.history_input = np.load(os.path.join(path_i, '{}.npy'.format(i)))
+                self.history_policy = np.load(os.path.join(path_p, '{}.npy'.format(i)))
+                self.history_value = np.load(os.path.join(path_v, '{}.npy'.format(i)))
+            else:
+                load_i = np.load(os.path.join(path_i, '{}.npy'.format(i)))
+                load_p = np.load(os.path.join(path_p, '{}.npy'.format(i)))
+                load_v = np.load(os.path.join(path_v, '{}.npy'.format(i)))
+                self.history_input = np.vstack([self.history_input, load_i])
+                self.history_policy = np.vstack([self.history_policy, load_p])
+                self.history_value = np.append(self.history_value, load_v)
 
     def clean(self):
         '''
@@ -278,15 +261,11 @@ class Network:
         K.clear_session()
         self.model = None
 
-    def train(self, epochs, batch_size, cycle_epoch):
+    def train(self, cycle_epoch):
         '''
 
         Parameters
         ----------
-        epoches : int
-            Training epoch number.
-        batch_size : int
-            Training batch size.
         cycle_epoch : int
             How many epochs done for overall training.
 
@@ -295,10 +274,10 @@ class Network:
         None.
 
         '''
-        def decay(epoch):
-            if epoch < int(epochs * 0.5):
+        def decay(e):
+            if e < int(config.EPOCHS * 0.5):
                 lr = 0.02
-            elif epoch < int(epochs * 0.8):
+            elif e < int(config.EPOCHS * 0.8):
                 lr = 0.002
             else:
                 lr = 0.0002
@@ -307,19 +286,20 @@ class Network:
 
         lr_decay = LearningRateScheduler(decay)
         print_callback = LambdaCallback(
-            on_epoch_begin = lambda epoch, logs: print('\rTrain: {}/{}'.format(epoch + 1, epochs), end='')
+            on_epoch_begin = lambda epoch, logs: print('\rTrain: {}/{}'.format(epoch + 1, config.EPOCHS), end='')
         )
 
+        self.load_network()
         self._load_history(cycle_epoch)
-
         hist = self.model.fit(
             self.history_input,
             [self.history_policy, self.history_value],
-            batch_size = batch_size,
-            epochs = epochs,
+            batch_size = config.BATCH_SIZE,
+            epochs = config.EPOCHS,
             verbose = False,
             callbacks = [lr_decay, print_callback],
         )
+        print()
         self.log.log_loss(hist, cycle_epoch)
         self.save_network(filename='current_network.h5')
 

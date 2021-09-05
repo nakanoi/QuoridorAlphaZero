@@ -55,7 +55,7 @@ class Node:
         '''
         self.board = board
         self.policy = policy
-        self.cput = cpuct
+        self.cput = config.C_PUT
         self.w = 0
         self.n = 0
         self.children = None

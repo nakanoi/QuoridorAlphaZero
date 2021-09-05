@@ -1,4 +1,5 @@
 import os
+import subprocess
 from copy import deepcopy
 from board import Board
 from networks import Network
@@ -65,17 +66,15 @@ class Match:
             os.path.join('networks', 'best_network.h5'),
         )
 
-    def play(self, algo, simulations, gamma, nets):
+    def play(self, algo, nets):
         '''
 
         Parameters
         ----------
         algo : MCTS Class
             Monte-Carlo algorithm class.
-        simulations : int
-            Number you want to repeat for root noe evaluation.
-        gamma : int, float
-            Constance used on Bolzman distribution.
+        nets : list
+            Networks list
 
         Returns
         -------
@@ -87,11 +86,11 @@ class Match:
         while not board.is_over():
             if board.is_first():
                 action = algo.take_action(
-                    nets[0], board, simulations, gamma
+                    nets[0], board, config.SIMULATIONS, 0,
                 )
             else:
                 action = algo.take_action(
-                    nets[1], board, simulations, gamma
+                    nets[1], board, config.SIMULATIONS, 0,
                 )
             old_board = deepcopy(board)
             board = old_board.next_board(action)
@@ -100,17 +99,11 @@ class Match:
 
         return point
 
-    def evaluate(self, simulations, gamma, eval_matches, epoches=0):
+    def evaluate(self, epoches=0):
         '''
 
         Parameters
         ----------
-        simulations : int
-            Number you want to repeat for root noe evaluation.
-        gamma : int, float
-            Constance used on Bolzman distribution.
-        eval_matches : int
-            Iterations for Monte-Carlo evaluation.
         epoches : int
             Played epoch times.
 
@@ -121,27 +114,65 @@ class Match:
         '''
         current_net = Network(load=True, load_file='current_network.h5')
         best_net = Network(load=True)
-        mcts = MCTS(config.C_PUT)
+        mcts = MCTS()
 
         nets = [current_net, best_net]
         total_points = 0
         results = []
 
-        for i in range(eval_matches):
+        for i in range(config.EVAL_MATCH):
             if i % 2 == 0:
-                v = self.play(mcts, simulations, gamma, nets)
+                v = self.play(mcts, nets)
             else:
-                v = 1 - self.play(mcts, simulations, gamma, list(reversed(nets)))
+                v = 1 - self.play(mcts, list(reversed(nets)))
 
             total_points += v
             results.append(v)
-            print('\rEvaluation: {}/{}'.format(i + 1, eval_matches), end=' ')
+            print('\rEvaluation: {}/{}'.format(i + 1, config.EVAL_MATCH), end=' ')
 
-        av = total_points / eval_matches
+        av = total_points / config.EVAL_MATCH
         print('Average: {}'.format(av))
 
         best_net.clean()
         current_net.clean()
+        self.log.log_result(results, epoches)
+        self._update_network()
+
+    def parallel_evaluate(self, epoches=0):
+        '''
+
+        Parameters
+        ----------
+        epoches : int
+            Played epoch times.
+
+        Returns
+        -------
+        None.
+
+        '''
+        total_points = 0
+        results = []
+
+        for i in range(config.EVAL_MATCH // config.PARALLEL_MATCH):
+            rs = []
+            for p in range(config.PARALLEL_MATCH):
+                if p % 2 == 0:
+                    sh = 'python async_match.py {} {}'.format('eval_match', 'True')
+                else:
+                    sh = 'python async_match.py {} {}'.format('eval_match', 'False')
+                r = subprocess.Popen(sh, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                rs.append(r)
+            for j, r in enumerate(rs):
+                point = r.stdout.readline().decode()
+                point = float(point.rstrip('\n'))
+                v = point if i % 2 == 0 else 1 - point
+                total_points += v
+                results.append(v)
+                print('\rEvaluation: {}/{} => {}'.format(i * config.PARALLEL_MATCH + j + 1, config.EVAL_MATCH, v), end='')
+
+        av = total_points / config.EVAL_MATCH
+        print('\nAverage: {}'.format(av))
         self.log.log_result(results, epoches)
         self._update_network()
 

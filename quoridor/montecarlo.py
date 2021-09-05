@@ -1,6 +1,7 @@
 from copy import deepcopy
 import numpy as np
 from mcts_node import Node
+import config
 
 
 class MCTS:
@@ -12,16 +13,15 @@ class MCTS:
         Constant used for node evaluation
 
     '''
-    def __init__(self, cpuct):
+    def __init__(self):
         '''
 
         Paramators
         ----------
-        cpuct : float
-            Constant used for node evaluation
+        None.
 
         '''
-        self.cpuct = cpuct
+        self.cpuct = config.C_PUT
 
     def _bolzman_distribution(self, probs, gamma):
         '''
